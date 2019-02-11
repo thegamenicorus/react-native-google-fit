@@ -212,9 +212,9 @@ _**Note**: Do not change BuildConfig.APPLICATION_ID - it's a constant value._
     
     getDailyDistanceSamples(options, callback); // method to get daily distance
     
-    isAvailable(callback); // Checks is GoogleFit available for current account / installed on device
+    isAvailable(callback: (available: boolean)); // Checks is GoogleFit available for current account / installed on device
     
-    isEnabled(callback); // Checks is permissions granted
+    isEnabled(callback: (enabled: boolean)); // Checks is permissions granted
     
     deleteWeight(options, callback); // method to delete weights by options (same as in save weights)
  
