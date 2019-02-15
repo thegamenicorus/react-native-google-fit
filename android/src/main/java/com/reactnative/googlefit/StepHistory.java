@@ -57,7 +57,15 @@ public class StepHistory {
     }
 
     public ReadableArray aggregateDataByDate(long startTime, long endTime) {
-        return aggregateData(12, TimeUnit.HOURS, startTime, endTime);
+        // make sure it is start of day
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(startTime);
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        long startOfToday = calendar.getTimeInMillis();
+        return aggregateData(12, TimeUnit.HOURS, startOfToday, endTime);
     }
 
     public ReadableArray aggregateDataByHour(long startTime, long endTime) {
