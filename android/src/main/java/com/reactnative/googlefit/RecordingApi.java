@@ -72,6 +72,8 @@ public class RecordingApi {
     }
 
     public void subscribe(ReadableArray dataTypes) {
+        Log.i(TAG, "subscribe");
+
         ArrayList<String> dataTypesList = new ArrayList<String>();
 
         for (Object type : dataTypes.toArrayList()) {

@@ -30,7 +30,7 @@ import com.google.android.gms.fitness.data.DataType;
 public class GoogleFitModule extends ReactContextBaseJavaModule implements LifecycleEventListener {
 
     private static final String REACT_MODULE = "RNGoogleFit";
-    private ReactContext mReactContext;
+    private ReactApplicationContext mReactContext;
     private GoogleFitManager mGoogleFitManager = null;
     private String GOOGLE_FIT_APP_URI = "com.google.android.apps.fitness";
 
@@ -76,9 +76,6 @@ public class GoogleFitModule extends ReactContextBaseJavaModule implements Lifec
             mGoogleFitManager = new GoogleFitManager(mReactContext, activity);
         }
 
-        if (mGoogleFitManager.isAuthorized()) {
-            return;
-        }
         mGoogleFitManager.authorize();
     }
 
@@ -116,7 +113,7 @@ public class GoogleFitModule extends ReactContextBaseJavaModule implements Lifec
                                          Callback successCallback) {
 
         try {
-            successCallback.invoke(mGoogleFitManager.getStepHistory().aggregateDataByDate((long) startDate, (long) endDate));
+            mGoogleFitManager.getStepHistory().aggregateDataByDate((long) startDate, (long) endDate, errorCallback, successCallback);
         } catch (IllegalViewOperationException e) {
             errorCallback.invoke(e.getMessage());
         }
@@ -128,7 +125,7 @@ public class GoogleFitModule extends ReactContextBaseJavaModule implements Lifec
                                           Callback errorCallback,
                                           Callback successCallback) {
         try {
-            successCallback.invoke(mGoogleFitManager.getStepHistory().aggregateDataByHour((long) startDate, (long) endDate));
+            mGoogleFitManager.getStepHistory().aggregateDataByHour((long) startDate, (long) endDate, errorCallback, successCallback);
         } catch (IllegalViewOperationException e) {
             errorCallback.invoke(e.getMessage());
         }
