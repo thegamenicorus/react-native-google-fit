@@ -88,10 +88,33 @@ class RNGoogleFit {
    * @param {Function} callback The function will be called with an array of elements.
    */
 
+  getStepCountSamples = (options, callback) => {
+    let startDate = options.startDate != undefined ? new Date(Date.parse(options.startDate)).setHours(0, 0, 0, 0) : (new Date()).setHours(0, 0, 0, 0);
+    let endDate = options.endDate != undefined ? new Date(Date.parse(options.endDate)).setHours(23, 59, 59, 999) : (new Date()).setHours(23, 59, 59, 999);
+    let intervalMinutes = options.interval || 60;
+    googleFit.getIntervalStepCountSamples(intervalMinutes, startDate, endDate,
+      msg => callback(msg, false),
+      (res) => {
+        if (res.length > 0) {
+          callback(false, res.map(function (dev) {
+            let obj = {};
+            obj.source = dev.source.appPackage + ((dev.source.stream) ? ":" + dev.source.stream : "");
+            obj.steps = dev.steps;
+            return obj;
+          }, this)
+          );
+        } else {
+          callback("There is no any steps data for this period", false);
+        }
+      }
+    );
+  };
+
   getHourlyStepCountSamples = (options, callback) => {
-    let startDate = options.date != undefined ? new Date(Date.parse(options.date)).setHours(0, 0, 0, 0) : (new Date()).setHours(0,0,0,0);
-    let endDate = options.date != undefined ? new Date(Date.parse(options.date)).setHours(23, 59, 59, 999) : (new Date()).setHours(23, 59, 59, 999);
-    googleFit.getHourlyStepCountSamples(startDate, endDate,
+    let startDate = options.startDate != undefined ? new Date(Date.parse(options.startDate)).setHours(0, 0, 0, 0) : (new Date()).setHours(0, 0, 0, 0);
+    let endDate = options.endDate != undefined ? new Date(Date.parse(options.endDate)).setHours(23, 59, 59, 999) : (new Date()).setHours(23, 59, 59, 999);
+    let intervalMinutes = options.interval || 60;
+    googleFit.getIntervalStepCountSamples(intervalMinutes, startDate, endDate,
       msg => callback(msg, false),
       (res) => {
         if (res.length > 0) {
@@ -165,13 +188,32 @@ class RNGoogleFit {
       });
   }
 
+  getDistanceSamples(options, callback) {
+    const startDate = options.startDate != undefined ? Date.parse(options.startDate) : (new Date()).setHours(0, 0, 0, 0);
+    const endDate = options.endDate != undefined ? Date.parse(options.endDate) : (new Date()).valueOf();
+    let intervalMinutes = options.interval || 60;
+
+    googleFit.getDistanceSamples(
+      intervalMinutes,
+      startDate,
+      endDate,
+      (msg) => callback(msg, false),
+      (res) => {
+        if (res.length > 0) {
+          callback(false, res);
+        } else {
+          callback("There is no any distance data for this period", false);
+        }
+      });
+  }
+
   getActivitySamples(options, callback) {
+    const startDate = options.startDate != undefined ? Date.parse(options.startDate) : (new Date()).setHours(0, 0, 0, 0);
+    const endDate = options.endDate != undefined ? Date.parse(options.endDate) : (new Date()).valueOf();
     googleFit.getActivitySamples(
-      options.startDate,
-      options.endDate,
-      (error) => {
-        callback(error, false);
-      },
+      startDate,
+      endDate,
+      (error) => callback(error, false),
       (res) => {
         if (res.length > 0) {
           callback(false, res);
@@ -206,6 +248,25 @@ class RNGoogleFit {
             }
           });
           callback(false, res.filter(day => day != undefined));
+        } else {
+          callback("There is no any calorie data for this period", false);
+        }
+      });
+  }
+
+  getCalorieSamples(options, callback) {
+    const startDate = options.startDate != undefined ? Date.parse(options.startDate) : (new Date()).setHours(0, 0, 0, 0);
+    const endDate = options.endDate != undefined ? Date.parse(options.endDate) : (new Date()).valueOf();
+    let intervalMinutes = options.interval || 60;
+
+    googleFit.getCalorieSamples(
+      intervalMinutes,
+      startDate,
+      endDate,
+      (msg) => callback(msg, false),
+      (res) => {
+        if (res) {
+          callback(false, res);
         } else {
           callback("There is no any calorie data for this period", false);
         }

@@ -1,12 +1,11 @@
 /**
  * Copyright (c) 2017-present, Stanislav Doskalenko - doskalenko.s@gmail.com
  * All rights reserved.
- *
+ * <p>
  * This source code is licensed under the MIT-style license found in the
  * LICENSE file in the root directory of this source tree.
- *
+ * <p>
  * Based on Asim Malik android source code, copyright (c) 2015
- *
  **/
 
 package com.reactnative.googlefit;
@@ -15,11 +14,13 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.fitness.Fitness;
 import com.google.android.gms.fitness.data.Bucket;
 import com.google.android.gms.fitness.data.DataPoint;
@@ -34,6 +35,7 @@ import java.text.Format;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 
@@ -43,10 +45,61 @@ public class DistanceHistory {
     private GoogleFitManager googleFitManager;
 
     private static final String TAG = "DistanceHistory";
+    private static final String DATE_FORMAT_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
 
-    public DistanceHistory(ReactContext reactContext, GoogleFitManager googleFitManager){
+    public DistanceHistory(ReactContext reactContext, GoogleFitManager googleFitManager) {
         this.mReactContext = reactContext;
         this.googleFitManager = googleFitManager;
+    }
+
+    public void aggregateDataByInterval(int minutes,
+                                        long startTime,
+                                        long endTime,
+                                        Callback errorCallback,
+                                        Callback successCallback) {
+        DateFormat dateFormat = new SimpleDateFormat(DATE_FORMAT_PATTERN);
+        dateFormat.setTimeZone(TimeZone.getDefault());
+
+        DataReadRequest readRequest = new DataReadRequest.Builder()
+                .aggregate(DataType.TYPE_DISTANCE_DELTA, DataType.AGGREGATE_DISTANCE_DELTA)
+                .bucketByTime(minutes, TimeUnit.MINUTES)
+                .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
+                .build();
+
+        Log.i(TAG, "aggregateDataByInterval DistanceHistory ");
+
+        Fitness.getHistoryClient(mReactContext, GoogleSignIn.getLastSignedInAccount(mReactContext))
+                .readData(readRequest)
+                .addOnSuccessListener((dataReadResult) -> {
+                    WritableArray map = Arguments.createArray();
+
+                    //Used for aggregated data
+                    if (dataReadResult.getBuckets().size() > 0) {
+                        Log.i(TAG, "Number of buckets: " + dataReadResult.getBuckets().size());
+                        for (Bucket bucket : dataReadResult.getBuckets()) {
+                            List<DataSet> dataSets = bucket.getDataSets();
+                            for (DataSet dataSet : dataSets) {
+                                processIntervalDataSet(dataSet, map);
+                            }
+                        }
+                    }
+                    //Used for non-aggregated data
+                    else if (dataReadResult.getDataSets().size() > 0) {
+                        Log.i(TAG, "Number of returned DataSets: " + dataReadResult.getDataSets().size());
+                        for (DataSet dataSet : dataReadResult.getDataSets()) {
+                            processIntervalDataSet(dataSet, map);
+                        }
+                    }
+
+                    successCallback.invoke(map);
+                })
+                .addOnFailureListener((e) -> {
+                    Log.i(TAG, "Aggregate data failed: " + e);
+//                    errorCallback.invoke(e);
+                })
+                .addOnCompleteListener((dataReadResult) -> {
+                    Log.i(TAG, "Aggregate onComplete()");
+                });
     }
 
     public ReadableArray aggregateDataByDate(long startTime, long endTime) {
@@ -67,7 +120,7 @@ public class DistanceHistory {
 
         WritableArray map = Arguments.createArray();
 
-        //Used for aggregated data
+        // Used for aggregated data
         if (dataReadResult.getBuckets().size() > 0) {
             Log.i(TAG, "Number of buckets: " + dataReadResult.getBuckets().size());
             for (Bucket bucket : dataReadResult.getBuckets()) {
@@ -77,7 +130,7 @@ public class DistanceHistory {
                 }
             }
         }
-        //Used for non-aggregated data
+        // Used for non-aggregated data
         else if (dataReadResult.getDataSets().size() > 0) {
             Log.i(TAG, "Number of returned DataSets: " + dataReadResult.getDataSets().size());
             for (DataSet dataSet : dataReadResult.getDataSets()) {
@@ -107,7 +160,7 @@ public class DistanceHistory {
             String day = formatter.format(new Date(dp.getStartTime(TimeUnit.MILLISECONDS)));
             Log.i(TAG, "Day: " + day);
 
-            for(Field field : dp.getDataType().getFields()) {
+            for (Field field : dp.getDataType().getFields()) {
                 Log.i("History", "\tField: " + field.getName() +
                         " Value: " + dp.getValue(field));
 
@@ -115,6 +168,21 @@ public class DistanceHistory {
                 stepMap.putDouble("startDate", dp.getStartTime(TimeUnit.MILLISECONDS));
                 stepMap.putDouble("endDate", dp.getEndTime(TimeUnit.MILLISECONDS));
                 stepMap.putDouble("distance", dp.getValue(field).asFloat());
+                map.pushMap(stepMap);
+            }
+        }
+    }
+
+    private void processIntervalDataSet(DataSet dataSet, WritableArray map) {
+        Log.i(TAG, "Data returned for Data type: " + dataSet.getDataType().getName());
+        DateFormat dateFormat = new SimpleDateFormat(DATE_FORMAT_PATTERN);
+        WritableMap stepMap = Arguments.createMap();
+
+        for (DataPoint dp : dataSet.getDataPoints()) {
+            for (Field field : dp.getDataType().getFields()) {
+                stepMap.putString("startDate", dateFormat.format(dp.getStartTime(TimeUnit.MILLISECONDS)));
+                stepMap.putString("endDate", dateFormat.format(dp.getEndTime(TimeUnit.MILLISECONDS)));
+                stepMap.putDouble("value", dp.getValue(field).asFloat());
                 map.pushMap(stepMap);
             }
         }

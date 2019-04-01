@@ -68,10 +68,20 @@ public class StepHistory {
         aggregateData(12, TimeUnit.HOURS, startOfToday, endTime, errorCallback, successCallback);
     }
 
+    // aggregateDataByHour
     public void aggregateDataByHour(long startTime,
                                     long endTime,
                                     Callback errorCallback,
                                     Callback successCallback) {
+        aggregateDataByInterval(60, startTime, endTime, errorCallback, successCallback);
+    }
+
+    // New with ActiveLife
+    public void aggregateDataByInterval(int minutes,
+                                        long startTime,
+                                        long endTime,
+                                        Callback errorCallback,
+                                        Callback successCallback) {
         DateFormat dateFormat = new SimpleDateFormat(DATE_FORMAT_PATTERN);
         dateFormat.setTimeZone(TimeZone.getDefault());
 
@@ -141,7 +151,7 @@ public class StepHistory {
                             ,
                             //DataType.AGGREGATE_STEP_COUNT_DELTA
                             aggregateType)
-                    .bucketByTime(1, TimeUnit.HOURS) // 1-hour resolution
+                    .bucketByTime(minutes, TimeUnit.MINUTES) // 1-hour resolution
                     .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
                     .build();
         } else {
@@ -172,11 +182,13 @@ public class StepHistory {
 //                            Log.i(TAG, "\tEnd  : " + dateFormat.format(bucket.getEndTime(TimeUnit.MILLISECONDS)));
 //                            Log.i(TAG, "\tValue  : " + bucketSteps);
 
-                                WritableMap stepMap = Arguments.createMap();
-                                stepMap.putString("startDate", dateFormat.format(bucket.getStartTime(TimeUnit.MILLISECONDS)));
-                                stepMap.putString("endDate", dateFormat.format(bucket.getEndTime(TimeUnit.MILLISECONDS)));
-                                stepMap.putDouble("value", bucketSteps);
-                                steps.pushMap(stepMap);
+                                if (bucketSteps > 0) {
+                                    WritableMap stepMap = Arguments.createMap();
+                                    stepMap.putString("startDate", dateFormat.format(bucket.getStartTime(TimeUnit.MILLISECONDS)));
+                                    stepMap.putString("endDate", dateFormat.format(bucket.getEndTime(TimeUnit.MILLISECONDS)));
+                                    stepMap.putDouble("value", bucketSteps);
+                                    steps.pushMap(stepMap);
+                                }
                             }
                         }
 
@@ -200,6 +212,7 @@ public class StepHistory {
         }
     }
 
+    // Old
     public void aggregateData(int timeResolution,
                               TimeUnit timeUnit,
                               long startTime,
@@ -323,7 +336,7 @@ public class StepHistory {
                     })
                     .addOnFailureListener((e) -> {
                         Log.i(TAG, "Aggregate data failed: " + e);
-//                        errorCallback.invoke(e);
+                        errorCallback.invoke(e);
                     })
                     .addOnCompleteListener((dataReadResult) -> {
 //                    Log.i(TAG, "Aggregate onComplete()");

@@ -15,12 +15,14 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.fitness.Fitness;
 import com.google.android.gms.fitness.data.Bucket;
 import com.google.android.gms.fitness.data.DataPoint;
@@ -40,6 +42,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 
@@ -49,10 +52,59 @@ public class CalorieHistory {
     private DataSet FoodDataSet;
 
     private static final String TAG = "CalorieHistory";
+    private static final String DATE_FORMAT_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
 
     public CalorieHistory(ReactContext reactContext, GoogleFitManager googleFitManager) {
         this.mReactContext = reactContext;
         this.googleFitManager = googleFitManager;
+    }
+
+    public void aggregateDataByInterval(int minutes,
+                                        long startTime,
+                                        long endTime,
+                                        Callback errorCallback,
+                                        Callback successCallback) {
+        DateFormat dateFormat = new SimpleDateFormat(DATE_FORMAT_PATTERN);
+        dateFormat.setTimeZone(TimeZone.getDefault());
+
+        DataReadRequest readRequest = new DataReadRequest.Builder()
+                .aggregate(DataType.TYPE_CALORIES_EXPENDED, DataType.AGGREGATE_CALORIES_EXPENDED)
+                .bucketByTime(minutes, TimeUnit.MINUTES)
+                .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
+                .build();
+
+        Fitness.getHistoryClient(mReactContext, GoogleSignIn.getLastSignedInAccount(mReactContext))
+                .readData(readRequest)
+                .addOnSuccessListener((dataReadResult) -> {
+                    WritableArray map = Arguments.createArray();
+
+                    // Used for aggregated data
+                    if (dataReadResult.getBuckets().size() > 0) {
+                        Log.i(TAG, "Number of buckets: " + dataReadResult.getBuckets().size());
+                        for (Bucket bucket : dataReadResult.getBuckets()) {
+                            List<DataSet> dataSets = bucket.getDataSets();
+                            for (DataSet dataSet : dataSets) {
+                                processIntervalDataSet(dataSet, map);
+                            }
+                        }
+                    }
+                    // Used for non-aggregated data
+                    else if (dataReadResult.getDataSets().size() > 0) {
+                        Log.i(TAG, "Number of returned DataSets: " + dataReadResult.getDataSets().size());
+                        for (DataSet dataSet : dataReadResult.getDataSets()) {
+                            processIntervalDataSet(dataSet, map);
+                        }
+                    }
+
+                    successCallback.invoke(map);
+                })
+                .addOnFailureListener((e) -> {
+                    Log.i(TAG, "Aggregate data failed: " + e);
+//                    errorCallback.invoke(e);
+                })
+                .addOnCompleteListener((dataReadResult) -> {
+                    Log.i(TAG, "Aggregate onComplete()");
+                });
     }
 
     public ReadableArray aggregateDataByDate(long startTime, long endTime) {
@@ -131,6 +183,20 @@ public class CalorieHistory {
         } else throw new Exception(dataReadResult.getStatus().getStatusMessage());
     }
 
+    private void processIntervalDataSet(DataSet dataSet, WritableArray map) {
+        Log.i(TAG, "Data returned for Data type: " + dataSet.getDataType().getName());
+        DateFormat dateFormat = new SimpleDateFormat(DATE_FORMAT_PATTERN);
+        WritableMap stepMap = Arguments.createMap();
+
+        for (DataPoint dp : dataSet.getDataPoints()) {
+            for (Field field : dp.getDataType().getFields()) {
+                stepMap.putString("startDate", dateFormat.format(dp.getStartTime(TimeUnit.MILLISECONDS)));
+                stepMap.putString("endDate", dateFormat.format(dp.getEndTime(TimeUnit.MILLISECONDS)));
+                stepMap.putDouble("value", dp.getValue(field).asFloat());
+                map.pushMap(stepMap);
+            }
+        }
+    }
 
     private void processDataSet(DataSet dataSet, WritableArray map) {
         Log.i(TAG, "Data returned for Data type: " + dataSet.getDataType().getName());
