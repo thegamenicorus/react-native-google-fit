@@ -30,6 +30,8 @@ declare module "react-native-google-fit" {
 
     getHourlyStepCountSamples: (options: any, callback: ((isError: boolean, result: any) => void)) => void;
 
+    getStepCountSamples: (options: any, callback: ((isError: boolean, result: any) => void)) => void;
+
     buildDailySteps(steps: any): { date: any, value: any }[];
 
     /**
@@ -38,6 +40,8 @@ declare module "react-native-google-fit" {
      * @callback {Function} callback The function will be called with an array of elements.
      */
     getDailyDistanceSamples(options: any, callback: ((isError: boolean, result: any) => void)): void;
+
+    getDistanceSamples(options: any, callback: ((isError: boolean, result: any) => void)): void;
 
     /**
     * Get the total distance per day over a specified date range.
@@ -52,6 +56,8 @@ declare module "react-native-google-fit" {
      * @callback {Function} callback The function will be called with an array of elements.
      */
     getDailyCalorieSamples(options: any, callback: ((isError: boolean, result: any) => void)): void;
+
+    getCalorieSamples(options: any, callback: ((isError: boolean, result: any) => void)): void;
 
     saveFood(options: FoodIntake, callback: ((isError: boolean) => void)): void;
 
